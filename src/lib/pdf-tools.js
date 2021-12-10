@@ -8,14 +8,6 @@ export const getPDFReadebleStream = (media) => {
     },
   };
 
-  /*  const reviews = media.reviews.map((review) => {
-    return {
-        text: review._id,
-        text: review.comment,
-        text: review.rate,
-        style: "review",
-    }; */
-
   const printer = new PdfPrinter(fonts);
 
   const docDefinition = {
@@ -25,23 +17,35 @@ export const getPDFReadebleStream = (media) => {
         fit: [100, 100],
       }, */
       {
-        text: `${media.Title} `,
+        text: `${media.Title} \n\n`,
         style: "header",
       },
-      `${media.Year} \n\n`,
+      `Year : ${media.Year} \n\n`,
 
-      `${media.Type}\n\n`,
-      /* {
-        text: `${media.Reviews} `,
-        style: "header",
-      }, */
-
+      `Type : ${media.Type}\n\n`,
       {
-        text: `${media.createdAt}\n\n`,
+        text: `Reviews \n\n`,
+      },
+      {
+        text: media.Reviews.map(function (Reviews) {
+          return {
+            text:
+              Reviews._id +
+              "\n\n" +
+              Reviews.comment +
+              "\n\n" +
+              Reviews.rate +
+              "\n\n",
+            pageBreak: "after",
+          };
+        }),
+      },
+      {
+        text: `Timestamp : ${media.createdAt}\n\n`,
         style: ["quote", "small"],
       },
       {
-        text: `${media.updatedAt}\n\n`,
+        text: `Timestamp : ${media.updatedAt}\n\n`,
         style: ["quote", "small"],
       },
       { qr: `${media.Poster}` },
