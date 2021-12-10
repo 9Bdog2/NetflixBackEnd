@@ -10,9 +10,11 @@ import {
   reviewValidationMiddleware,
 } from "./validation.js";
 import { validationResult } from "express-validator";
-import {v2 as cloudinary} from 'cloudinary';
-import {CloudinaryStorage} from 'multer-storage-cloudinary';
-import multer from 'multer';
+import { v2 as cloudinary } from "cloudinary";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
+import multer from "multer";
+import { pipeline } from "stream";
+import { getPDFReadebleStream } from "../lib/pdf-tools.js";
 
 /* ------------Defining Router---------- */
 const mediaRouter = express.Router();
@@ -162,10 +164,32 @@ mediaRouter.get("/:imdbID/reviews", async (req, res, next) => {
   }
 });
 
+const cloudUploader = multer({
+  storage: new CloudinaryStorage({
+    cloudinary,
+    params: {
+      folder: "netflix_media",
+    },
+  }),
+}).single("poster");
 
-
-mediaRouter.post("/:imdbID/poster", async (req, res, next) => {
+mediaRouter.post("/:imdbID/poster", cloudUploader, async (req, res, next) => {
   try {
+    const media = await readMediaJSON();
+    const imdbID = req.params.imdbID;
+    const mediaToUpdate = media.find((media) => media.imdbID === imdbID);
+    if (mediaToUpdate) {
+      const updatedMedia = {
+        ...mediaToUpdate,
+        Poster: req.file.path,
+        updatedAt: new Date().toISOString(),
+      };
+      media.splice(media.indexOf(mediaToUpdate), 1, updatedMedia);
+      await writeMediaJSON(media);
+      res.status(200).send(updatedMedia);
+    } else {
+      next(createHttpError(404, "No media found"));
+    }
   } catch (err) {
     next(err);
   }
@@ -173,6 +197,21 @@ mediaRouter.post("/:imdbID/poster", async (req, res, next) => {
 
 mediaRouter.get("/:imdbID/pdf", async (req, res, next) => {
   try {
+    res.setHeader("Content-Disposition", "attachment; filename=media.pdf");
+    const media = await readMediaJSON();
+    const imdbID = req.params.imdbID;
+    const mediaToSend = media.find((media) => media.imdbID === imdbID);
+    if (mediaToSend) {
+      const source = getPDFReadebleStream(mediaToSend);
+      const destination = res;
+      pipeline(source, destination, (err) => {
+        if (err) {
+          next(err);
+        }
+      });
+    } else {
+      next(createHttpError(404, "No media found"));
+    }
   } catch (err) {
     next(err);
   }
@@ -220,29 +259,33 @@ mediaRouter.delete("/:imdbID/reviews/:elementId", async (req, res, next) => {
   }
 });
 
-mediaRouter.post("/:imdbID/reviews",reviewValidationMiddleware,  async (req, res, next) => {
-  try {
-    const media = await readMediaJSON();
-    const imdbID = req.params.imdbID;
-    const mediaToSend = media.find((media) => media.imdbID === imdbID);
-    if (mediaToSend) {
-      const newReview = {
-        _id: uniqid(),
-        comment: req.body.comment,
-        rate: req.body.rate,
-        elementId: imdbID,
-        createdAt: new Date().toISOString(),
-      };
-      mediaToSend.Reviews.push(newReview);
-      await writeMediaJSON(media);
-      res.status(201).send(newReview);
-    } else {
-      next(createHttpError(404, "No media found"));
+mediaRouter.post(
+  "/:imdbID/reviews",
+  reviewValidationMiddleware,
+  async (req, res, next) => {
+    try {
+      const media = await readMediaJSON();
+      const imdbID = req.params.imdbID;
+      const mediaToSend = media.find((media) => media.imdbID === imdbID);
+      if (mediaToSend) {
+        const newReview = {
+          _id: uniqid(),
+          comment: req.body.comment,
+          rate: req.body.rate,
+          elementId: imdbID,
+          createdAt: new Date().toISOString(),
+        };
+        mediaToSend.Reviews.push(newReview);
+        await writeMediaJSON(media);
+        res.status(201).send(newReview);
+      } else {
+        next(createHttpError(404, "No media found"));
+      }
+    } catch (err) {
+      next(err);
     }
-  } catch (err) {
-    next(err);
   }
-});
+);
 
 export default mediaRouter;
 /* ------------Setting up endpoints---------- */
