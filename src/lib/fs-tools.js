@@ -1,14 +1,11 @@
-import fs from "fs";
+import fs from "fs-extra";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 
-const { readJSON, writeJSON, writeFile } = fs;
+const { readJSON, writeJSON } = fs;
 
 /*-------------Folder path for JSON File------------ */
-const dataFolderPath = join(
-  dirname(fileURLToPath(import.meta.url)),
-  "../data/media.json"
-);
+const dataFolderPath = join(dirname(fileURLToPath(import.meta.url)), "../data");
 /*-------------Folder path for JSON File------------ */
 /*-------------JSON PATH------------ */
 const mediaJSONPath = join(dataFolderPath, "media.json");
@@ -20,4 +17,5 @@ export function readMediaJSON() {
 export function writeMediaJSON(data) {
   return writeJSON(mediaJSONPath, data);
 }
+
 /*-------------READ & WRITE JSON Files------------ */

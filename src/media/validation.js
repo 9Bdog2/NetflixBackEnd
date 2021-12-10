@@ -9,6 +9,8 @@ export const mediaValidationMiddleware = [
 
 export const reviewValidationMiddleware = [
   body("comment").exists().withMessage("Comment is required"),
-  body("rate").exists().withMessage("Rating is required"),
-  body("elementId").exists().withMessage("IMDBID is required"),
+  body("rate")
+    .exists()
+    .isInt([{ min: 0, max: 5 }])
+    .withMessage("Rating is required"),
 ];
